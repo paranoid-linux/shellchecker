@@ -21,7 +21,7 @@ matrix:
 
 branches:
   only:
-    - master
+    - main
     ## Allow building of 'test-' prefixed branches
     - /^(?i:test)-.*$/
   except:
