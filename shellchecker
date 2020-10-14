@@ -51,7 +51,7 @@ EOF
 
 
 _argument_list=("$@")
-read -a _checker_shell_list <<<"${_argument_list[0]}"
+read -ra _checker_shell_list <<<"${_argument_list[0]}"
 for i in "${!_checker_shell_list[@]}"; do
     _element="${_checker_shell_list[${i}]}"
     [[ "${_element}" =~ ^(bash|dash|ksh|sh)$ ]] && {
