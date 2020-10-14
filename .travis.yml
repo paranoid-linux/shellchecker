@@ -1,0 +1,55 @@
+## Note, "[ci skio]" or "[skip ci]" within a commit message _should_
+##  cause Travis Continuous Integration to skip the following
+
+## Clone settings for repository
+git:
+  depth: 10
+  quite: true
+  submodules: false
+
+
+## Attempt to limit environment to only what is required
+language: bash
+matrix:
+  fast_finish: true
+  ## Thanks be to, https://docs.travis-ci.com/user/multi-os/
+  include:
+    - name: 'Linux Xenial'
+      os: linux
+      dist: xenial
+
+
+branches:
+  only:
+    - master
+    ## Allow building of 'test-' prefixed branches
+    - /^(?i:test)-.*$/
+  except:
+    - gh-pages
+
+
+#
+# Do the things
+#
+before_install:
+  - sudo apt-get install shellcheck
+
+install:
+  - sudo make install
+
+# before_script:
+
+script:
+  - shellcheck shellchecker
+
+  - shellcheck -e 2155 .travis-ci/run-tests.sh
+
+  - .travis-ci/run-tests.sh
+
+# after_failure:
+
+# after_success:
+
+after_script:
+  - sudo make uninstall
+

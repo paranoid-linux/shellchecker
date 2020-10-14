@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+
+
+# Shebang wrapper runs script if 'shellcheck' returns no errors
+# Copyright (C) 2020 S0AndS0
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+__usage__() {
+    local _message="${1}"
+    cat <<'EOF'
+Shebang wrapper runs script if 'shellcheck' returns no errors
+
+
+Options for `shellcheck` may be defined prior to shell name...
+
+    #!/usr/local/sbin/shellchecker --format=gcc bash
+
+
+Options for named shell may be defined after shell name...
+
+    #!/usr/local/sbin/shellchecker bash --restricted
+
+
+Example script...
+
+    #!/usr/local/sbin/shellchecker --format=gcc bash --restricted
+
+    _argument_list=("${@}")
+    for i in "${!_argument_list[@]}"; do
+        printf '_argument_list[%i] -> %s\n' "${i}" "${_argument_list[${i}]}"
+    done
+EOF
+
+    if ((${#_message})); then
+        printf >&2 '\n\nError: %s\n' "${_message}"
+        exit 1
+    fi
+}
+
+
+_argument_list=("$@")
+_checker_shell_list=(${_argument_list[0]})
+for i in "${!_checker_shell_list[@]}"; do
+    _element="${_checker_shell_list[${i}]}"
+    [[ "${_element}" =~ ^(bash|dash|ksh|sh)$ ]] && {
+        _shell_name="${_element}"
+        _slice_index_checker="${i}"
+        _slice_index_shell="$((i + 1))"
+        break
+    }
+done
+
+((${#_shell_name})) || {
+    __usage__ 'Shell name undefined!'
+}
+
+_checker_opts=("${_checker_shell_list[@]::${_slice_index_checker}}")
+_shell_opts=("${_checker_shell_list[@]:${_slice_index_shell}}")
+
+
+for i in "${!_argument_list[@]}"; do
+    [[ "${i}" == 0 ]] && {
+        continue
+    }
+
+    _element="${_argument_list[${i}]}"
+    [[ -x "${_element}" ]] && {
+        _script_path="${_element}"
+        _script_opts=("${_argument_list[@]:$((i + 1))}")
+        break
+    }
+done
+
+
+((${#_checker_opts[@]})) || ((${#_shell_opts[@]})) && {
+    ## Ensure shell is configured for shellcheck
+    grep -q "\<${_shell_name}\>" <<<"${_checker_opts[@]}" || {
+        _checker_opts+=( -s "${_shell_name}" )
+    }
+
+    ## Ensure that shebang errors are excluded
+    grep -q "\<2096\>" <<<"${_checker_opts[@]}" || {
+        for i in "${!_checker_opts[@]}"; do
+            _element="${_checker_opts[${i}]}"
+            if [[ "${_element}" == '-e' ]]; then
+                _next_element="${_checker_opts[$((i + 1))]}"
+                _checker_opts[${i} + 1]="${_next_element},2096"
+                _exclude_matched=1
+                break
+            elif [[ "${_element}" =~ --exclude* ]]; then
+                _checker_opts[${i}]="${_element},2096"
+                _exclude_matched=1
+                break
+            fi
+        done
+
+        ((_exclude_matched)) || {
+            _checker_opts+=( -e 2096 )
+        }
+    }
+}
+
+
+((${#_script_path})) || {
+    __usage__ 'Script path undefined!'
+}
+
+[[ -x "${_script_path}" ]] || {
+    __usage__ "Script path not executable -> '${_script_path}'"
+}
+
+
+((SHELLCHECKER_VERBOSE)) && {
+    printf >&2 '# shellchecker -> shellcheck "%s" "%s"\n' "${_checker_opts[*]}" "${_script_path}"
+}
+shellcheck "${_checker_opts[@]}" "${_script_path:?'No script found'}" && {
+    ((SHELLCHECKER_VERBOSE)) && {
+        printf >&2 '# shellchecker -> %s "%s" "%s"\\\n' "${_shell_name}" "${_shell_opts[*]}" "${_script_path}"
+        printf >&2 '#                 %s\\\n' "${_script_opts[@]}"
+    }
+    ${_shell_name} "${_shell_opts[@]}" "${_script_path}" "${_script_opts[@]}"
+}
+
