@@ -35,7 +35,7 @@ echo "\${_noOpp}"
       ^-- SC2154: _noOpp is referenced but not assigned.
 EOF
 
-    local result="$("${__DIR__}/tests-errors/undefined-variable.sh" | sed '/^$/d')"
+    local result="$("${__DIR__}/tests-errors/undefined-variable.sh" | sed '/^$/d' | head -n3)"
 
     if [[ "${result}" == "${expected}" ]]; then
         printf 'Success: tests-errors/undefined-variable.sh\n'
