@@ -1,3 +1,11 @@
+#
+#    Make variables to satisfy conventions
+#
+NAME=shellchecker
+VERSION=0.0.1
+PKG_NAME=$(NAME)-$(VERSION)
+
+
 # Install/Uninstall make script for `shellchecker` project
 # Copyright (C) 2020 S0AndS0
 #
@@ -24,14 +32,6 @@ SCRIPT_NAME = shellchecker
 
 
 #
-#    Make variables to satisfy conventions
-#
-NAME=shellchecker
-VERSION=0.0.1
-PKG_NAME=$(NAME)-$(VERSION)
-
-
-#
 #    Make variables set upon run-time
 #
 ## Obtain directory path that this Makefile lives in
@@ -51,6 +51,7 @@ endif
 #
 #    Make options/commands
 #
+.PHONY: install uninstall upgrade git-pull list
 .SILENT: install uninstall
 .ONESHELL: install
 
@@ -62,7 +63,34 @@ install: SHELL := /bin/bash
 install: ## Symbolically links to project script
 	[[ -L "$(SCRIPT_INSTALL_DIR)/$(SCRIPT_NAME)" ]] || { ln -sv "$(ROOT_DIR)/$(SCRIPT_NAME)" "$(SCRIPT_INSTALL_DIR)/$(SCRIPT_NAME)"; }
 
+upgrade: ## Runs targets -> uninstall git-pull install
+upgrade: | uninstall git-pull install
+
+git-pull: SHELL := /bin/bash
+git-pull: ## Pulls updates from default upstream Git remote
+	cd "$(ROOT_DIR)"
+	git pull
+
 list: SHELL := /bin/bash
 list: ## Lists available make commands
-	gawk -F'[: ]' '/^[a-z0-9A-Z-]{1,32}: [\#]{1,2}[[:print:]]*$$/ {first = $$1; $$1=""; print $$0, "\n", "   ", first}' "$(ROOT_DIR)/Makefile"
+	gawk 'BEGIN {
+		delete matched_lines
+	}
+	{
+		if ($$0 ~ "^[a-z0-9A-Z-]{1,32}: [#]{1,2}[[:print:]]*$$") {
+		matched_lines[length(matched_lines)] = $$0
+		}
+	}
+	END {
+		print "## Make Commands for $(NAME) ##\n"
+		for (k in matched_lines) {
+			split(matched_lines[k], line_components, ":")
+			gsub(" ## ", "    ", line_components[2])
+			print line_components[1]
+			print line_components[2]
+			if ((k + 1) != length(matched_lines)) {
+				print
+			}
+		}
+	}' "$(ROOT_DIRECTORY)/Makefile"
 
